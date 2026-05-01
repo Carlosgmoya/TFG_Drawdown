@@ -1,0 +1,6 @@
+algorithms/__pycache__/
+algorithms/utils/__pycache__/
+algorithms/*.pyc
+env/
+docs/
+.venv/
