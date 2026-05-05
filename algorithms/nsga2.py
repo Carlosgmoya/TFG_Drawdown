@@ -7,16 +7,15 @@ from algorithms.utils.operators import crossover, mutation
 from algorithms.utils.fitness import dominates
 
 class NSGA2:
-    def __init__(self, N_arc, N_pop, num_assets, returns, cov_matrix, cardinality, crossover_rate, mutation_rate, generations):
+    def __init__(self, N_arc, N_pop, num_assets, returns_matrix, cardinality, crossover_rate, mutation_rate, generations):
         self.N_arc = N_arc # Archive population size (A_0)
         self.N_pop = N_pop # Usual population size (B_0)
         self.cardinality = cardinality # Number of assets in the portfolio
         self.num_assets = num_assets # Number of assets
-        self.returns = returns # Returns of the assets
-        self.cov_matrix = cov_matrix # Covariance matrix of the assets
+        self.returns_matrix = returns_matrix # Historical returns matrix (n_assets, n_periods)
         self.crossover_rate = crossover_rate # Crossover rate
         self.mutation_rate = mutation_rate # Mutation rate
-        self.generations = generations # Number of genetations
+        self.generations = generations # Number of generations
 
         populations = initialize_population(self.N_pop, self.num_assets, self.cardinality)
         self.population_A = populations[0] # Archive population (A_0)
@@ -36,11 +35,11 @@ class NSGA2:
         
         fronts = [[]] # List of fronts
         population_size = len(population) # Size of the population 
-        dominance_count = np.zeros(population_size) # A 2D array that count of how many individuals dominate each individual
+        dominance_count = np.zeros(population_size) # Count of how many individuals dominate each individual
         dominated_sets = [[] for _ in range(population_size)] # List of dominated sets for each individual
 
-        # Returns a matrix with the returns and risks of each individual
-        matrix_ret_risks = precompute_objectives(population, self.returns, self.cov_matrix) 
+        # Returns a matrix with [MDD, -mean_return] for each individual
+        matrix_ret_risks = precompute_objectives(population, self.returns_matrix) 
         
         for i in range(population_size):
             for j in range(population_size):
@@ -78,18 +77,18 @@ class NSGA2:
         """
 
         distances = np.zeros(len(front)) # Initialize distances to zero
-        for m in range(2): # For each objective (expected return and risk)
-            front.sort(key=lambda x: evaluate(population[x], self.returns, self.cov_matrix)[m]) # Sort the front by the m-th objective
-            distances[0] = distances[-1] = np.inf # Assign infinite distance to the limits
-            min_val = evaluate(population[front[0]], self.returns, self.cov_matrix)[m]
-            max_val = evaluate(population[front[-1]], self.returns, self.cov_matrix)[m]
-            for i in range(1, len(front) - 1): # For each individual in the front (except the limits)
+        for m in range(2): # For each objective (MDD and -mean_return)
+            front.sort(key=lambda x: evaluate(population[x], self.returns_matrix)[m]) # Sort by m-th objective
+            distances[0] = distances[-1] = np.inf # Infinite distance to extremes
+            min_val = evaluate(population[front[0]], self.returns_matrix)[m]
+            max_val = evaluate(population[front[-1]], self.returns_matrix)[m]
+            for i in range(1, len(front) - 1): # For each individual (except extremes)
                 if max_val - min_val == 0: # Avoid division by zero
                     distances[i] = 0
                 else:
-                    # Calculate the crowding distance, which is the normalized distance between the two neighbors
-                    distances[i] += (evaluate(population[front[i + 1]], self.returns, self.cov_matrix)[m] -
-                                 evaluate(population[front[i - 1]], self.returns, self.cov_matrix)[m]) / (max_val - min_val)
+                    # Calculate crowding distance: normalized distance between neighbors
+                    distances[i] += (evaluate(population[front[i + 1]], self.returns_matrix)[m] -
+                                     evaluate(population[front[i - 1]], self.returns_matrix)[m]) / (max_val - min_val)
                  
         return distances
 
@@ -99,24 +98,24 @@ class NSGA2:
         Select individuals for the next generation based on non-dominated sorting and crowding distance.
         
         Parameters:
-        - fronts: A list of fronts, where each front contains the indices of the individuals in that front.
-        - population: A 2D array representing the population of portfolios.
+        - fronts: A list of fronts with indices.
+        - population: A 2D array of portfolios.
         - population_size: The size of the objective population.
 
         Returns:
-        - new_population: A 2D array representing the selected individuals for the next generation.
+        - new_population: Selected individuals for the next generation.
         """
 
-        new_population = [] # Initialize the new population (index of individuals)
+        new_population = [] # Initialize new population (indices)
         for front in fronts:
-            if len(new_population) + len(front) <= population_size: # If the new population size does not exceed the limit
+            if len(new_population) + len(front) <= population_size:
                 new_population.extend(front)
             else:
-                distances = self.crowding_distance_assignment(front, population) # Calculate the crowding distance for the front
-                sorted_front = sorted(zip(front, distances), key=lambda x: -x[1]) # Zip the front with the distances and sort by distance (highest to lowest (-x[1]))
-                new_individuals = sorted_front[:population_size - len(new_population)] # Select the best individuals based on distance
-                new_population.extend([x[0] for x in new_individuals]) # Add the selected individuals to the new population
-        return np.array([population[i] for i in new_population]) # Convert indices to actual individuals
+                distances = self.crowding_distance_assignment(front, population)
+                sorted_front = sorted(zip(front, distances), key=lambda x: -x[1]) # Sort by distance (descending)
+                new_individuals = sorted_front[:population_size - len(new_population)]
+                new_population.extend([x[0] for x in new_individuals])
+        return np.array([population[i] for i in new_population])
 
 
     def vary(self, population):
@@ -135,12 +134,12 @@ class NSGA2:
 
         distances = [] # List of crowding distances for each front
         for front in fronts:
-            distances.append(self.crowding_distance_assignment(front, population)) # Calculate the crowding distance for the front
+            distances.append(self.crowding_distance_assignment(front, population))
         
-        for _ in range(self.N_pop): # Create a new population
-            parents = self.binary_tournament(population, fronts, distances) # Select two parents
-            child = crossover(population[parents[0]], population[parents[1]], self.num_assets, self.cardinality, self.crossover_rate) # Crossover
-            child = mutation(child, self.mutation_rate) # Mutation
+        for _ in range(self.N_pop):
+            parents = self.binary_tournament(population, fronts, distances)
+            child = crossover(population[parents[0]], population[parents[1]], self.num_assets, self.cardinality, self.crossover_rate)
+            child = mutation(child, self.mutation_rate)
             new_population.append(child)
         return np.array(new_population)
     
@@ -151,28 +150,29 @@ class NSGA2:
         
         Parameters:
         - population: The current population.
-        - fronts: A list of fronts, where each front contains the indices of the individuals in that front.
-        - crowding_distance: A list of crowding distances for each individual.
+        - fronts: A list of fronts with indices.
+        - crowding_distance: A list of crowding distances for each front.
         
         Returns:
         - selected_parents: The selected individuals.
         """
 
         selected_parents = []
-        for _ in range(2): # Select two parents
-            candidates = random.sample(range(len(population)), 2) # Select two random individuals
-            front_candidate1 = self.getIndexFront(fronts, candidates[0]) # Get the front of the first candidate
-            front_candidate2 = self.getIndexFront(fronts, candidates[1]) # Get the front of the second candidate
+        for _ in range(2):
+            candidates = random.sample(range(len(population)), 2)
+            front_candidate1 = self.getIndexFront(fronts, candidates[0])
+            front_candidate2 = self.getIndexFront(fronts, candidates[1])
             
-            pos_in_front_ind1 = fronts[front_candidate1].index(candidates[0]) # Get the position of the first candidate in the front
-            pos_in_front_ind2 = fronts[front_candidate2].index(candidates[1]) # Get the position of the second candidate in the front
-            if front_candidate1 == front_candidate2: # If both candidates are in the same front
-                if crowding_distance[front_candidate1][pos_in_front_ind1] > crowding_distance[front_candidate2][pos_in_front_ind2]: # Select the candidate with the highest crowding distance
+            pos_in_front_ind1 = fronts[front_candidate1].index(candidates[0])
+            pos_in_front_ind2 = fronts[front_candidate2].index(candidates[1])
+            
+            if front_candidate1 == front_candidate2: # Same front
+                if crowding_distance[front_candidate1][pos_in_front_ind1] > crowding_distance[front_candidate2][pos_in_front_ind2]:
                     selected_parents.append(candidates[0])
                 else:
                     selected_parents.append(candidates[1])
             else:
-                if front_candidate1 < front_candidate2: # Select the candidate from the front with the lower index
+                if front_candidate1 < front_candidate2: # Better front (lower index)
                     selected_parents.append(candidates[0])
                 else:
                     selected_parents.append(candidates[1])
@@ -182,55 +182,33 @@ class NSGA2:
     def getIndexFront(self, front, index):
         """
         Get the index of the front that contains the given index.
-        
-        Parameters:
-        - front: A list of fronts, where each front contains the indices of the individuals in that front.
-        - index: The index of the individual.
-        
-        Returns:
-        - The index of the front that contains the given index.
         """
-
         for i, subarray in enumerate(front):
             if index in subarray:
                 return i
-
         return -1
 
 
     def update(self, population_A, population_B):
         """
-        Select the best individuals from the archive population and the current population.
-
-        Parameters:
-        - population_A: The archive population.
-        - population_B: The current population.
-
-        Returns:
-        - best_population: The combined best individuals from both populations.
+        Select the best individuals from archive and current populations.
         """
-
-        combined_population = np.vstack((population_A, population_B)) # Combine the two populations
-        fronts = self.fast_non_dominated_sort(combined_population) # Get the fronts
-        selected_population = self.selection(fronts, combined_population, self.N_arc) # Select the best individuals
-
+        combined_population = np.vstack((population_A, population_B))
+        fronts = self.fast_non_dominated_sort(combined_population)
+        selected_population = self.selection(fronts, combined_population, self.N_arc)
         return selected_population
 
 
     def evolve(self):
         """
-        Evolve the population over a number of generations using NSGA-II.
-
-        Returns:
-        - population: The final population after evolution.
+        Evolve the population using NSGA-II with MDD and -mean_return as objectives.
         """
-
         i = 0
         started_time = time.time()
         
         while i < self.generations:
             if i % 10 == 0:
-                print("Generation: ", i)
+                print(f"Generation: {i}")
             self.population_A = self.update(self.population_A, self.population_B)
             self.population_B = self.vary(self.population_A)
             i += 1            
@@ -240,5 +218,3 @@ class NSGA2:
         print(f"Execution time: {elapsed_time:.3f} seconds")
 
         return self.population_A
-    
-    

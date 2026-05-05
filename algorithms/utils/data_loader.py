@@ -3,16 +3,68 @@ import numpy as np
 
 # This module contains functions to load datasets for portfolio optimization.
 
-def load_dataset(file_path):
-    """Load dataset and return expected returns and covariance matrix using only pandas."""
-
-    # Read the entire file as lines using pandas
-    raw_lines = pd.read_csv(file_path, header=None, dtype=str).squeeze().tolist()
+def load_historical_returns(file_path, frequency='daily'):
+    """
+    Load historical price/return data and return the returns matrix for MDD calculation.
     
-    # Get number of assets
-    num_assets = int(raw_lines[0])
+    Parameters:
+    - file_path: path to CSV file with historical data
+    - frequency: 'daily', 'weekly', 'monthly' (for informational purposes)
+    
+    Returns:
+    - returns_matrix: numpy array of shape (n_assets, n_periods) with historical returns
+    - asset_names: list of asset names
+    """
+    df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+    
+    # If data are prices, convert to returns
+    if df.iloc[0].mean() > 0.1:  # Probably prices
+        returns_df = df.pct_change().dropna()
+    else:  # Probably already returns
+        returns_df = df.copy()
+    
+    # Remove columns with too many NaN or invalid values
+    returns_df = returns_df.dropna(axis=1, thresh=len(returns_df)*0.5)
+    returns_df = returns_df.fillna(0)
+    
+    # Remove columns with -99.99 or -999 codes
+    valid_columns = ~returns_df.isin([-99.99, -999]).any()
+    returns_df = returns_df.loc[:, valid_columns]
+    
+    # Transpose to get (n_assets, n_periods)
+    returns_matrix = returns_df.values.T
+    
+    print(f"Historical returns matrix shape: {returns_matrix.shape}")
+    print(f"Number of assets: {returns_matrix.shape[0]}")
+    print(f"Number of periods: {returns_matrix.shape[1]}")
+    
+    return returns_matrix, returns_df.columns.tolist()
 
-    # Parse expected returns and std deviations
+
+def load_data_for_both_models(file_path):
+    """
+    Load data and return both formats for MDD and Markowitz approaches.
+    Useful for comparing both methods in your TFG.
+    """
+    returns_matrix, asset_names = load_historical_returns(file_path)
+    
+    mean_returns = np.mean(returns_matrix, axis=1)
+    cov_matrix = np.cov(returns_matrix)
+    
+    return {
+        'returns_matrix': returns_matrix,
+        'mean_returns': mean_returns,
+        'cov_matrix': cov_matrix,
+        'asset_names': asset_names
+    }
+
+
+# Keep original functions for backward compatibility
+def load_dataset(file_path):
+    """Original function for Markowitz model with synthetic data."""
+    raw_lines = pd.read_csv(file_path, header=None, dtype=str).squeeze().tolist()
+    num_assets = int(raw_lines[0])
+    
     stats_df = pd.read_csv(
         file_path, 
         sep=r'\s+', 
@@ -22,10 +74,8 @@ def load_dataset(file_path):
         names=['return', 'std_dev']
     ).astype(float)
 
-    # Initialize correlation matrix
     corr_matrix = pd.DataFrame(1.0, index=range(num_assets), columns=range(num_assets))
-
-    # Read correlation data from the file
+    
     correlations = pd.read_csv(
         file_path,
         sep=r'\s+',
@@ -34,14 +84,12 @@ def load_dataset(file_path):
         names=['i', 'j', 'corr']
     )
 
-    # Fill correlation matrix
     for _, row in correlations.iterrows():
         i_idx, j_idx = int(row['i']) - 1, int(row['j']) - 1
         corr = float(row['corr'])
         corr_matrix.iat[i_idx, j_idx] = corr
         corr_matrix.iat[j_idx, i_idx] = corr
 
-    # Compute covariance matrix
     std_devs = stats_df['std_dev']
     std_outer = std_devs.to_frame().dot(std_devs.to_frame().T)
     cov_matrix = std_outer * corr_matrix
@@ -50,95 +98,33 @@ def load_dataset(file_path):
 
 
 def load_real_data(file_path):
-    """Load real data from a CSV file and return expected returns and covariance matrix."""
-    
+    """Original function for Markowitz model with real data."""
     df = pd.read_csv(file_path, header=None, skiprows=1, dtype=str)
-
-    # Remove the first column (dates)
     df = df.drop(columns=[0])
-
-    # Convert all values to float, errors as strings are converted to NaN
     df = df.apply(pd.to_numeric, errors='coerce')
-
-    # Remove columns that contain -99.99 or -999
+    
     columnas_validas = df.columns[~df.isin([-99.99, -999]).any()]
     df_limpio = df[columnas_validas]
-
-    print(df_limpio)
-
-    # Calculate the average return vector, ignoring NaNs
-    retuns = df_limpio.mean()
-
-    # Convert vector to np.array
-    retuns = retuns.to_numpy()
-
-    # Calculate covariance matrix
-    cov_matrix = df_limpio.cov() / 100
-    # Convert matrix to np.array
-    cov_matrix = cov_matrix.to_numpy()
-
-    print(f"Expected Returns: {retuns}")
-    sum(retuns)  # This line is not necessary, but it can be used to check the sum of returns
-    print(f"Expected Returns Sum: {sum(retuns)}")
-    print(f"Covariance Matrix:\n{cov_matrix}")
-
+    
+    retuns = df_limpio.mean().to_numpy()
+    cov_matrix = df_limpio.cov().to_numpy() / 100
+    
     return retuns, cov_matrix
 
 
 def save_data_txt(file_path, output_path):
-    """Load real data from a CSV file and save it in a specific text format."""
-    # Load the real data
+    """Utility to save data in text format."""
     returns, cov_matrix = load_real_data(file_path)
-
-    # Number of assets
     N = len(returns)
-
-    # Standard deviations
     stds = np.sqrt(np.diag(cov_matrix))
-
-    # Correlation matrix
     corr_matrix = cov_matrix / np.outer(stds, stds)
-
-    # Write to output file
+    
     with open(output_path, 'w') as f:
         f.write(f"{N}\n")
-        
         for i in range(N):
             f.write(f"{returns[i]:.6f} {stds[i]:.6f}\n")
-
         for i in range(N):
             for j in range(i, N):
                 f.write(f"{i+1} {j+1} {corr_matrix[i, j]:.6f}\n")
-
+    
     print(f"File saved in: {output_path}")
-
-
-def load_dataset_drawdown(file_path):
-
-    df = pd.read_csv(file_path)
-
-    # Quitar columna de fechas si existe
-    if not np.issubdtype(df.iloc[:,0].dtype, np.number):
-        df = df.drop(columns=[df.columns[0]])
-
-    # Convertir a numérico
-    df = df.apply(pd.to_numeric, errors='coerce')
-
-    # Eliminar valores problemáticos
-    df.replace([np.inf, -np.inf], np.nan, inplace=True)
-
-    # ❗ IMPORTANTE: eliminar filas con NaN
-    df = df.dropna()
-
-    # ❗ IMPORTANTE: eliminar ceros (precios inválidos)
-    df = df[(df > 0).all(axis=1)]
-
-    data = df.to_numpy()
-
-    print("Primeras filas del dataset:")
-    print(data[:5])
-
-    # Calcular retornos
-    returns_matrix = data[1:] / data[:-1] - 1
-
-    return returns_matrix

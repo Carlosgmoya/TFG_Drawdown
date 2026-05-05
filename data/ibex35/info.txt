@@ -1,0 +1,13 @@
+IBEX 35 Data for TFG
+==================================================
+Training: 2025-04-03 to 2026-03-30
+Validation: 2026-04-01 to 2026-04-30
+Assets: 6
+Training days: 252
+Validation days: 20
+  - BBVA.MC
+  - IBE.MC
+  - ITX.MC
+  - REP.MC
+  - SAN.MC
+  - TEF.MC
