@@ -10,16 +10,15 @@ from algorithms.utils.normalization import normalize_objectives
 
 
 class NPGA2:
-    def __init__(self, N_arc, N_pop, num_assets, returns, cov_matrix, cardinality, crossover_rate, mutation_rate, generations, tdom, rsh):
+    def __init__(self, N_arc, N_pop, num_assets, returns_matrix, cardinality, crossover_rate, mutation_rate, generations, tdom, rsh):
         self.N_arc = N_arc # Archive population size (A_0)
         self.N_pop = N_pop # Usual population size (B_0)
         self.cardinality = cardinality # Number of assets in the portfolio
         self.num_assets = num_assets # Number of assets
-        self.returns = returns # Returns of the assets
-        self.cov_matrix = cov_matrix # Covariance matrix of the assets
+        self.returns_matrix = returns_matrix # Historical returns matrix (n_assets, n_periods)
         self.crossover_rate = crossover_rate # Crossover rate
         self.mutation_rate = mutation_rate # Mutation rate
-        self.generations = generations # Number of genetations
+        self.generations = generations # Number of generations
         self.tdom = tdom  # Tournament size
         self.rsh = rsh    # Niche radius
 
@@ -33,7 +32,7 @@ class NPGA2:
         Calculate the dominance rank of each individual in the population.
         
         Parameters:
-        - matrix_ret_risks: A 2D array containing the returns and risks of the population.
+        - matrix_ret_risks: A 2D array containing [MDD, -mean_return] of the population.
         
         Returns:
         - rank: A 1D array containing the dominance rank of each individual.
@@ -54,7 +53,7 @@ class NPGA2:
         Calculate the Manhattan distance between individuals.
         
         Parameters:
-        - matrix_ret_risks: A 2D array containing the returns and risks of the population.
+        - matrix_ret_risks: A 2D array containing [MDD, -mean_return] of the population.
         
         Returns:
         - distances: A 2D array containing the Manhattan distances between individuals.
@@ -98,7 +97,7 @@ class NPGA2:
         """
 
         combined = np.vstack((population_A, population_B))
-        matrix_ret_risks = precompute_objectives(combined, self.returns, self.cov_matrix)
+        matrix_ret_risks = precompute_objectives(combined, self.returns_matrix)
         rank = self.dominance_rank(matrix_ret_risks)
         distances = self.manhattan_distance(matrix_ret_risks)
 
@@ -108,17 +107,17 @@ class NPGA2:
             if (len(available) < self.tdom): # If there are less available individuals than the tournament size
                 candidates = random.sample(list(available), len(available))
             else:
-                candidates = random.sample(list(available), self.tdom) # Sample a random subset of the available individuals
+                candidates = random.sample(list(available), self.tdom) # Sample a random subset
             best_rank = min(rank[i] for i in candidates) # Best rank
             best = [i for i in candidates if rank[i] == best_rank] # Best individuals
             if len(best) > 1: # If there are multiple best individuals
                 niche_counts = [self.niche_count(distances, archive, i) for i in best] # Niche counts
-                best_idx = best[np.argmin(niche_counts)] # Best individual, the one with the lowest niche count
+                best_idx = best[np.argmin(niche_counts)] # Best individual (lowest niche count)
             else:
                 best_idx = best[0] # Only one individual
 
             archive.append(combined[best_idx]) # Add the best individual to the archive
-            available.remove(best_idx) # Remove the best individual from the available set
+            available.remove(best_idx) # Remove it from the available set
         return archive
 
 
@@ -134,12 +133,12 @@ class NPGA2:
         """
 
         new_population = []
-        ranks = self.dominance_rank(precompute_objectives(population, self.returns, self.cov_matrix))
+        ranks = self.dominance_rank(precompute_objectives(population, self.returns_matrix))
         for _ in range(self.N_pop):
             parent1 = binary_tournament(population, ranks)
             parent2 = binary_tournament(population, ranks)
             # If the parents are the same, select another parent
-            while evaluate(parent1, self.returns, self.cov_matrix) == evaluate(parent2, self.returns, self.cov_matrix):
+            while evaluate(parent1, self.returns_matrix) == evaluate(parent2, self.returns_matrix):
                 parent2 = binary_tournament(population, ranks)
             child = crossover(parent1, parent2, self.num_assets, self.cardinality, self.crossover_rate)
             child = mutation(child, self.mutation_rate)

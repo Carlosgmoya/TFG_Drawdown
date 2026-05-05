@@ -6,16 +6,15 @@ from algorithms.utils.operators import crossover, mutation, binary_tournament
 
 
 class PESA:
-    def __init__(self, N_arc, N_pop, num_assets, returns, cov_matrix, cardinality, crossover_rate, mutation_rate, generations, grid_divisions):
+    def __init__(self, N_arc, N_pop, num_assets, returns_matrix, cardinality, crossover_rate, mutation_rate, generations, grid_divisions):
         self.N_arc = N_arc # Archive population size (A_0)
         self.N_pop = N_pop # Usual population size (B_0)
         self.cardinality = cardinality # Number of assets in the portfolio
         self.num_assets = num_assets # Number of assets
-        self.returns = returns # Returns of the assets
-        self.cov_matrix = cov_matrix # Covariance matrix of the assets
+        self.returns_matrix = returns_matrix # Historical returns matrix (n_assets, n_periods)
         self.crossover_rate = crossover_rate # Crossover rate
         self.mutation_rate = mutation_rate # Mutation rate
-        self.generations = generations # Number of genetations
+        self.generations = generations # Number of generations
         self.grid_divisions = grid_divisions # Number of divisions in the grid
 
         populations = initialize_population(self.N_pop, self.num_assets, self.cardinality)
@@ -28,14 +27,14 @@ class PESA:
         Assign points to a hypergrid.
         
         Parameters:
-        - points: A numpy array of shape (N, 2), where each point is (return, risk)
+        - points: A numpy array of shape (N, 2), where each point is (MDD, -mean_return)
         
         Returns:
         - hypergrid: A list of lists with point indices assigned to grid cells
         """
 
-        min_vals = np.min(points, axis=0) # Minimum values of returns and risks
-        max_vals = np.max(points, axis=0) # Maximum values of returns and risks
+        min_vals = np.min(points, axis=0) # Minimum values of MDD and -mean_return
+        max_vals = np.max(points, axis=0) # Maximum values of MDD and -mean_return
         cell_size = (max_vals - min_vals) / self.grid_divisions # Size of each cell
 
         hypergrid = [[] for _ in range(self.grid_divisions * self.grid_divisions)] # Hypergrid
@@ -63,7 +62,7 @@ class PESA:
         - ind: The individual.
         
         Returns:
-        - length: The fitness of the individual.
+        - length: The fitness of the individual (number in same cell).
         """
 
         length = 0
@@ -80,18 +79,18 @@ class PESA:
         cell of the hypergrid.
         
         Parameters:
-        - matrix_ret_risks: The returns and risks of the population.
+        - matrix_ret_risks: [MDD, -mean_return] of the population.
         
         Returns:
-        - fitness: The fitness of the population.
+        - fitness: The fitness of the population (higher = more crowded = worse).
         """
 
         points = matrix_ret_risks.T
-        hypergrid = self.assign_hypergrid(points) # Hypergrid
+        hypergrid = self.assign_hypergrid(points)
         fitness = np.zeros(len(matrix_ret_risks.T))
 
         for i in range(len(matrix_ret_risks.T)):
-            fitness[i] = self.get_individual_fitness(hypergrid, i) # Fitness of each individual
+            fitness[i] = self.get_individual_fitness(hypergrid, i)
 
         return fitness
 
@@ -108,13 +107,13 @@ class PESA:
         """
 
         new_population = []
-        matrix_ret_risks = precompute_objectives(population, self.returns, self.cov_matrix)
+        matrix_ret_risks = precompute_objectives(population, self.returns_matrix)
         fitness = self.fitness(matrix_ret_risks) 
         for _ in range(self.N_pop):
             parent1 = binary_tournament(population, fitness)
             parent2 = binary_tournament(population, fitness)
             # If the parents are the same, select another parent
-            while evaluate(parent1, self.returns, self.cov_matrix) == evaluate(parent2, self.returns, self.cov_matrix):
+            while evaluate(parent1, self.returns_matrix) == evaluate(parent2, self.returns_matrix):
                 parent2 = binary_tournament(population, fitness)
             child = crossover(parent1, parent2, self.num_assets, self.cardinality, self.crossover_rate)
             child = mutation(child, self.mutation_rate)
@@ -127,8 +126,8 @@ class PESA:
         Check if an individual is not dominated by any individual in the population.
         
         Parameters:
-        - ret_risk_B: The returns and risk of the individual to check.
-        - matrix_ret_risks_A: The returns and risks of the archive population.
+        - ret_risk_B: (MDD, -mean_return) of the individual to check.
+        - matrix_ret_risks_A: [MDD, -mean_return] of the archive population.
         
         Returns:
         - True if the individual is not dominated, False otherwise.
@@ -142,17 +141,22 @@ class PESA:
 
     def dominates(self, ret_risk1, ret_risk2):
         """
-        Check if an individual dominates another individual.
+        Check if individual 1 dominates individual 2.
+        BOTH objectives are to be MINIMIZED: MDD and -mean_return.
         
         Parameters:
-        - ret_risk1: Returns and risk of the first individual.
-        - ret_risk2: Returns and risk of the second individual.
+        - ret_risk1: (MDD, -mean_return) of the first individual.
+        - ret_risk2: (MDD, -mean_return) of the second individual.
         
         Returns:
         - True if the first individual dominates the second, False otherwise.
         """
 
-        return ret_risk1[0] >= ret_risk2[0] and ret_risk1[1] <= ret_risk2[1] and (ret_risk1[0] > ret_risk2[0] or ret_risk1[1] < ret_risk2[1])
+        mdd1, neg_ret1 = ret_risk1[0], ret_risk1[1]
+        mdd2, neg_ret2 = ret_risk2[0], ret_risk2[1]
+        
+        # Both objectives to minimize: <= in both, < in at least one
+        return (mdd1 <= mdd2 and neg_ret1 <= neg_ret2) and (mdd1 < mdd2 or neg_ret1 < neg_ret2)
 
 
     def update(self, population_A, population_B):
@@ -167,27 +171,27 @@ class PESA:
         - population_A: The updated archive population.
         """
         
-        matrix_ret_risks_A = precompute_objectives(population_A, self.returns, self.cov_matrix)
+        matrix_ret_risks_A = precompute_objectives(population_A, self.returns_matrix)
         
         for ind_b in population_B:
-            ret_risk_B = evaluate(ind_b, self.returns, self.cov_matrix)
-            # If the individual is not dominated by any individual in the archive population
-            if (self.is_not_dominated(ret_risk_B, matrix_ret_risks_A)):
-                # If the individual dominates any individual in the archive population, will be removed
+            ret_risk_B = evaluate(ind_b, self.returns_matrix)
+            # If the individual is not dominated by any individual in the archive
+            if self.is_not_dominated(ret_risk_B, matrix_ret_risks_A):
+                # Remove individuals from archive that are dominated by the new one
                 idxs_to_remove = []
-                for idx,ret_risk_A in enumerate(matrix_ret_risks_A.T):
+                for idx, ret_risk_A in enumerate(matrix_ret_risks_A.T):
                     if self.dominates(ret_risk_B, ret_risk_A):
                         idxs_to_remove.append(idx)
 
                 population_A = np.delete(population_A, idxs_to_remove, axis=0)
                 matrix_ret_risks_A = np.delete(matrix_ret_risks_A.T, idxs_to_remove, axis=0).T
 
-                # Add the individual to the archive population
+                # Add the individual to the archive
                 population_A = np.vstack((population_A, ind_b))
                 matrix_ret_risks_A = np.vstack((matrix_ret_risks_A.T, ret_risk_B)).T
+                
+                # If archive exceeds maximum size, remove most crowded
                 if len(population_A) > self.N_arc:
-                    # Remove the individual with the highest fitness, if there are multiple individuals with
-                    # the same fitness, remove one at random
                     fitness = self.fitness(matrix_ret_risks_A)
                     max_indices = np.where(fitness == np.max(fitness))[0]
                     to_remove = np.random.choice(max_indices)
@@ -199,10 +203,7 @@ class PESA:
 
     def evolve(self):
         """
-        Evolve the population over a number of generations using PESA.
-
-        Returns:
-        - population_A: The final population after evolution.
+        Evolve the population using PESA with MDD and -mean_return.
         """
 
         i = 0
