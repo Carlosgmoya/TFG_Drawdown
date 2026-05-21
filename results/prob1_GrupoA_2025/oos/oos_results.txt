@@ -1,0 +1,51 @@
+======================================================================
+  VALIDACION OUT-OF-SAMPLE - Grupo A (10 grandes) - Train: 2025, Val: Ene 2026
+======================================================================
+
+  Algoritmo: e-MOEA
+  Cartera          MDD Train    MDD Val  Ret Train    Ret Val Ret Acum Val   Dur DD
+  --------------------------------------------------------------------------------
+  Min MDD               7.82       2.65       0.12       0.06         1.10       17
+  Best Sortino         11.08       1.19       0.25       0.21         4.19        3
+  Max Return           20.79       2.05       0.36       0.26         5.15        4
+
+  Algoritmo: NPGA2
+  Cartera          MDD Train    MDD Val  Ret Train    Ret Val Ret Acum Val   Dur DD
+  --------------------------------------------------------------------------------
+  Min MDD               7.82       2.65       0.12       0.06         1.09       17
+  Best Sortino         11.03       1.16       0.25       0.21         4.17        3
+  Max Return           20.79       2.05       0.36       0.26         5.15        4
+
+  Algoritmo: NSGA-II
+  Cartera          MDD Train    MDD Val  Ret Train    Ret Val Ret Acum Val   Dur DD
+  --------------------------------------------------------------------------------
+  Min MDD               7.82       2.65       0.12       0.06         1.09       17
+  Best Sortino         11.04       1.16       0.25       0.21         4.17        3
+  Max Return           20.79       2.05       0.36       0.26         5.15        4
+
+  Algoritmo: PESA
+  Cartera          MDD Train    MDD Val  Ret Train    Ret Val Ret Acum Val   Dur DD
+  --------------------------------------------------------------------------------
+  Min MDD               7.87       2.66       0.12       0.06         1.08       17
+  Best Sortino         11.16       1.18       0.25       0.21         4.20        3
+  Max Return           20.62       2.13       0.36       0.26         5.17        4
+
+  Algoritmo: SPEA2
+  Cartera          MDD Train    MDD Val  Ret Train    Ret Val Ret Acum Val   Dur DD
+  --------------------------------------------------------------------------------
+  Min MDD               8.55       1.85       0.15       0.09         1.72       16
+  Best Sortino         11.13       1.20       0.25       0.21         4.18        3
+  Max Return           20.68       2.04       0.36       0.26         5.16        4
+
+----------------------------------------------------------------------
+  RESUMEN COMPARATIVO OOS - CARTERA MIN MDD
+----------------------------------------------------------------------
+  Algoritmo       MDD Val Ret Acum Val
+  ----------------------------------------
+  NPGA2              2.65         1.09
+  NSGA-II            2.65         1.09
+  PESA               2.66         1.08
+  SPEA2              1.85         1.72
+  e-MOEA             2.65         1.10
+
+======================================================================

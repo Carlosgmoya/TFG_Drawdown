@@ -1,0 +1,4 @@
+Cartera,MDD Train (%),MDD Val (%),Ret Train (%),Ret Val (%),Ret Acum Val (%),Dur DD Val (dias)
+Min MDD,4.91,2.09,0.07,0.16,3.22,12
+Best Sortino,5.84,2.34,0.11,0.27,5.53,12
+Max Return,14.21,4.12,0.18,0.59,12.23,10

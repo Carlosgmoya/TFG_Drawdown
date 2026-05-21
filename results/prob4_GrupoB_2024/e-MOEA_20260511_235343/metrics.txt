@@ -1,0 +1,6 @@
+Performance Metrics
+========================================
+Hypervolume:              0.5392
+Average Sortino Ratio:    0.1323
+Average MDD:              0.1032 (10.32%)
+Average Max DD Duration:  56.7 periods

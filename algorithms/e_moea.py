@@ -164,26 +164,26 @@ class E_MOEA:
     def vary(self, population):
         """
         Apply genetic operations (crossover and mutation) to the population.
-
-        Parameters:
-        - population: The current population.
-
-        Returns:
-        - new_population: The new population after genetic operations.
         """
-
         new_population = []
         fitness = calculate_total_fitness(population, self.returns_matrix)
         for _ in range(self.N_pop):
             parent1 = binary_tournament(population, fitness)
             parent2 = binary_tournament(population, fitness)
-            while evaluate(parent1, self.returns_matrix) == evaluate(parent2, self.returns_matrix):
+            
+            attempts = 0
+            while attempts < 10:
+                ret1 = evaluate(parent1, self.returns_matrix)
+                ret2 = evaluate(parent2, self.returns_matrix)
+                if abs(ret1[0] - ret2[0]) > 1e-6 or abs(ret1[1] - ret2[1]) > 1e-6:
+                    break
                 parent2 = binary_tournament(population, fitness)
+                attempts += 1
+            
             child = crossover(parent1, parent2, self.num_assets, self.cardinality, self.crossover_rate)
             child = mutation(child, self.mutation_rate)
             new_population.append(child)
         return np.array(new_population)
-
 
     def update(self, population_A, population_B):
         """

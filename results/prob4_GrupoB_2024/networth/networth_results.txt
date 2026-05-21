@@ -1,0 +1,35 @@
+======================================================================
+  VALIDACION DE NETWORTH - 1000 EUR INICIALES
+======================================================================
+  Periodo: 2025-01-03 a 2025-01-30
+  Dias: 20
+
+  CARTERA: Minimo MDD
+  Algoritmo     Capital Final Rentabilidad
+  ----------------------------------------
+  PESA            1037.52 EUR       3.75%
+  NPGA2           1035.05 EUR       3.50%
+  NSGA-II         1033.09 EUR       3.31%
+  SPEA2           1032.62 EUR       3.26%
+  e-MOEA          1030.48 EUR       3.05%
+
+  CARTERA: Best Sortino
+  Algoritmo     Capital Final Rentabilidad
+  ----------------------------------------
+  PESA            1045.96 EUR       4.60%
+  SPEA2           1039.24 EUR       3.92%
+  e-MOEA          1036.34 EUR       3.63%
+  NSGA-II         1035.67 EUR       3.57%
+  NPGA2           1035.04 EUR       3.50%
+
+  CARTERA: Maximo Retorno
+  Algoritmo     Capital Final Rentabilidad
+  ----------------------------------------
+  e-MOEA          1238.38 EUR      23.84%
+  NPGA2           1238.38 EUR      23.84%
+  NSGA-II         1238.38 EUR      23.84%
+  SPEA2           1238.38 EUR      23.84%
+  PESA            1233.71 EUR      23.37%
+
+  MEJOR CARTERA:
+  PESA: 1037.52 EUR

@@ -1,0 +1,19 @@
+Dataset: Grupo B - 2025
+==================================================
+Training: 2025-01-03 to 2025-12-31
+Validation: 2026-01-05 to 2026-01-30
+Assets: 10
+Training days: 254
+Validation days: 20
+
+Assets:
+  - ACS.MC
+  - AENA.MC
+  - ANA.MC
+  - ENG.MC
+  - GRF.MC
+  - MAP.MC
+  - MEL.MC
+  - NTGY.MC
+  - RED.MC
+  - SAB.MC

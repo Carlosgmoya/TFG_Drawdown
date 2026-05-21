@@ -1,0 +1,19 @@
+Dataset: Grupo A - 2024
+==================================================
+Training: 2024-01-03 to 2024-12-31
+Validation: 2025-01-03 to 2025-01-30
+Assets: 10
+Training days: 255
+Validation days: 20
+
+Assets:
+  - AMS.MC
+  - BBVA.MC
+  - CABK.MC
+  - CLNX.MC
+  - FER.MC
+  - IBE.MC
+  - ITX.MC
+  - REP.MC
+  - SAN.MC
+  - TEF.MC

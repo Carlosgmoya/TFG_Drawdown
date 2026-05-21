@@ -7,40 +7,40 @@ import numpy as np
 def evaluate(individual, returns_matrix):
     """
     Evaluate the portfolio represented by the individual.
-    
-    Parameters:
-    - individual: A portfolio represented as a vector of weights (n_assets,).
-    - returns_matrix: Historical returns matrix of shape (n_assets, q_periods).
-                      Element [i, t] is the return of asset i in period t.
-    
-    Returns:
-    - mdd: Maximum Drawdown of the portfolio (to minimize).
-    - neg_mean_return: Negative mean return of the portfolio (to minimize).
     """
-    # 1. Calculate portfolio returns over time: r_{p,t} = w^T * r_t for each t
-    # returns_matrix has shape (n_assets, q_periods)
-    # individual has shape (n_assets,)
-    # Result: portfolio_returns of shape (q_periods,)
+    # Limpiar datos de entrada
+    individual = np.nan_to_num(individual, nan=0.0, posinf=0.0, neginf=0.0)
+    individual = np.clip(individual, 0, 1)  # Pesos entre 0 y 1
+    
+    returns_matrix = np.nan_to_num(returns_matrix, nan=0.0, posinf=0.0, neginf=0.0)
+    returns_matrix = np.clip(returns_matrix, -0.5, 0.5)  # Rendimientos diarios maximos +/-50%
+    
+    # 1. Portfolio returns
     portfolio_returns = np.dot(individual, returns_matrix)
+    portfolio_returns = np.nan_to_num(portfolio_returns, nan=0.0)
+    portfolio_returns = np.clip(portfolio_returns, -0.5, 0.5)
     
-    # 2. Calculate compounded wealth: W_t = ∏_{s=1}^t (1 + r_{p,s})
-    # Start with wealth = 1 at t=0
+    # 2. Compounded wealth
     wealth = np.cumprod(1 + portfolio_returns)
-    wealth = np.insert(wealth, 0, 1.0)  # W_0 = 1
+    wealth = np.insert(wealth, 0, 1.0)
+    wealth = np.clip(wealth, 0.001, 1000.0)  # Evitar extremos
     
-    # 3. Calculate running maximum: W_max_t = max_{0≤s≤t} W_s
+    # 3. Running maximum
     running_max = np.maximum.accumulate(wealth)
+    running_max = np.clip(running_max, 0.001, 1000.0)
     
-    # 4. Calculate drawdown at each point: δ_t = 1 - W_t / W_max_t
+    # 4. Drawdowns
     drawdowns = 1 - wealth / running_max
+    drawdowns = np.nan_to_num(drawdowns, nan=0.0)
+    drawdowns = np.clip(drawdowns, 0, 1)
     
-    # 5. Maximum Drawdown: MDD = max δ_t
-    mdd = np.max(drawdowns)
+    # 5. Maximum Drawdown
+    mdd = np.max(drawdowns) if len(drawdowns) > 0 else 0.0
     
-    # 6. Mean return of the portfolio (sample mean over periods)
+    # 6. Mean return
     mean_return = np.mean(portfolio_returns)
+    mean_return = np.clip(mean_return, -0.1, 0.1)  # Maximo +/-10% diario
     
-    # Return both objectives (minimizing MDD and maximizing return = minimizing -return)
     return mdd, -mean_return
 
 

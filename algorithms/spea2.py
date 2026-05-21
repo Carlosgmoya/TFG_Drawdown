@@ -79,75 +79,74 @@ class SPEA2:
 
         return new_archive
 
-
     def truncate(self, population, N_arc):
         """
-        Truncate the population by removing least diverse solutions.
-
-        Parameters:
-        - population: The population to truncate.
-        - N_arc: The target size.
-
-        Returns:
-        - truncated_population: The truncated population.
+        Truncate the population by removing the least diverse solutions.
+        Version simplificada y robusta.
         """
-
         N = len(population)
+        
+        if N <= N_arc:
+            return population
+        
         matrix_ret_risks = precompute_objectives(population, self.returns_matrix)
-        points = matrix_ret_risks.T  # shape (N, 2)
-
+        points = matrix_ret_risks.T
+        
+        # Limpiar puntos
+        points = np.nan_to_num(points, nan=0.0, posinf=1.0, neginf=-1.0)
+        
+        # Calcular distancias
         distance_matrix = cdist(points, points)
         np.fill_diagonal(distance_matrix, np.inf)
-
-        remaining = list(range(N))
-        sort_distance_matrix = np.sort(distance_matrix, axis=1)
-        nearest_distances = sort_distance_matrix[:, 0]
-
-        while len(remaining) > N_arc:
-            min_indexes = np.where(nearest_distances == np.min(nearest_distances))[0]
-            to_remove = None
-            if len(min_indexes) > 1:
-                k = 1
-                while to_remove is None:
-                    if k >= N:
-                        to_remove = min_indexes[0]
-                        continue
-
-                    index_value = np.column_stack((min_indexes, sort_distance_matrix[min_indexes, k]))
-                    min_value = np.min(index_value[:, 1])
-                    min_index2 = np.where(index_value[:, 1] == min_value)[0]
-
-                    if len(min_index2) == 1:
-                        to_remove = index_value[min_index2[0]][0]
-                        continue
-                    k += 1
-            else:
-                to_remove = min_indexes[0]
-
-            nearest_distances[int(to_remove)] = np.inf
-            remaining.remove(int(to_remove))
         
-        return [population[i] for i in remaining]
+        # Estrategia simple: eliminar los que tienen menor distancia al vecino mas cercano
+        n_to_remove = N - N_arc
+        removed = set()
+        
+        for _ in range(n_to_remove):
+            # Encontrar el par mas cercano entre los no eliminados
+            remaining = [i for i in range(N) if i not in removed]
+            
+            if len(remaining) < 2:
+                break
+            
+            min_dist = np.inf
+            to_remove = remaining[0]
+            
+            for i in remaining:
+                # Distancia minima a cualquier otro individuo no eliminado
+                dists = [distance_matrix[i, j] for j in remaining if j != i]
+                if dists:
+                    d = min(dists)
+                    if d < min_dist:
+                        min_dist = d
+                        to_remove = i
+            
+            removed.add(to_remove)
+        
+        return [population[i] for i in range(N) if i not in removed]
 
 
     def vary(self, population):
         """
         Apply genetic operations (crossover and mutation) to the population.
-
-        Parameters:
-        - population: The current population.
-
-        Returns:
-        - new_population: The new population after genetic operations.
         """
-
         new_population = []
         fitness = calculate_total_fitness(population, self.returns_matrix)
         for _ in range(self.N_pop):
             parent1 = binary_tournament(population, fitness)
             parent2 = binary_tournament(population, fitness)
-            while evaluate(parent1, self.returns_matrix) == evaluate(parent2, self.returns_matrix):
+            
+            # Evitar bucle infinito: maximo 10 intentos
+            attempts = 0
+            while attempts < 10:
+                ret1 = evaluate(parent1, self.returns_matrix)
+                ret2 = evaluate(parent2, self.returns_matrix)
+                if abs(ret1[0] - ret2[0]) > 1e-6 or abs(ret1[1] - ret2[1]) > 1e-6:
+                    break
                 parent2 = binary_tournament(population, fitness)
+                attempts += 1
+            
             child = crossover(parent1, parent2, self.num_assets, self.cardinality, self.crossover_rate)
             child = mutation(child, self.mutation_rate)
             new_population.append(child)

@@ -25,33 +25,35 @@ class PESA:
     def assign_hypergrid(self, points):
         """
         Assign points to a hypergrid.
-        
-        Parameters:
-        - points: A numpy array of shape (N, 2), where each point is (MDD, -mean_return)
-        
-        Returns:
-        - hypergrid: A list of lists with point indices assigned to grid cells
         """
+        # Limpiar todos los NaN de los puntos
+        points_clean = np.nan_to_num(points, nan=0.0, posinf=1.0, neginf=-1.0)
+        
+        min_vals = np.min(points_clean, axis=0)
+        max_vals = np.max(points_clean, axis=0)
+        range_vals = max_vals - min_vals
+        
+        # Si no hay rango, todos los puntos van a la misma celda
+        if range_vals[0] < 1e-10:
+            range_vals[0] = 1.0
+        if range_vals[1] < 1e-10:
+            range_vals[1] = 1.0
+        
+        cell_size = range_vals / self.grid_divisions
 
-        min_vals = np.min(points, axis=0) # Minimum values of MDD and -mean_return
-        max_vals = np.max(points, axis=0) # Maximum values of MDD and -mean_return
-        cell_size = (max_vals - min_vals) / self.grid_divisions # Size of each cell
+        hypergrid = [[] for _ in range(self.grid_divisions * self.grid_divisions)]
 
-        hypergrid = [[] for _ in range(self.grid_divisions * self.grid_divisions)] # Hypergrid
+        for idx, point in enumerate(points_clean):
+            row = int((point[0] - min_vals[0]) / cell_size[0])
+            col = int((point[1] - min_vals[1]) / cell_size[1])
 
-        for idx, point in enumerate(points):
-            row = int((point[0] - min_vals[0]) / cell_size[0]) # Row of the cell
-            col = int((point[1] - min_vals[1]) / cell_size[1]) # Column of the cell
+            row = max(0, min(row, self.grid_divisions - 1))
+            col = max(0, min(col, self.grid_divisions - 1))
 
-            # Clamp to avoid going out of bounds due to precision
-            row = min(row, self.grid_divisions - 1) 
-            col = min(col, self.grid_divisions - 1)
+            cell_index = row * self.grid_divisions + col
+            hypergrid[cell_index].append(idx)
 
-            cell_index = row * self.grid_divisions + col # Index of the cell
-            hypergrid[cell_index].append(idx) # Append the index of the point to the cell
-
-        return hypergrid
-
+        return hypergrid     
 
     def get_individual_fitness(self, hypergrid, ind):
         """
@@ -98,23 +100,24 @@ class PESA:
     def vary(self, population):
         """
         Apply genetic operations (crossover and mutation) to the population.
-
-        Parameters:
-        - population: The current population.
-
-        Returns:
-        - new_population: The new population after genetic operations.
         """
-
         new_population = []
         matrix_ret_risks = precompute_objectives(population, self.returns_matrix)
         fitness = self.fitness(matrix_ret_risks) 
         for _ in range(self.N_pop):
             parent1 = binary_tournament(population, fitness)
             parent2 = binary_tournament(population, fitness)
-            # If the parents are the same, select another parent
-            while evaluate(parent1, self.returns_matrix) == evaluate(parent2, self.returns_matrix):
+            
+            # Evitar bucle infinito: maximo 10 intentos
+            attempts = 0
+            while attempts < 10:
+                ret1 = evaluate(parent1, self.returns_matrix)
+                ret2 = evaluate(parent2, self.returns_matrix)
+                if abs(ret1[0] - ret2[0]) > 1e-6 or abs(ret1[1] - ret2[1]) > 1e-6:
+                    break
                 parent2 = binary_tournament(population, fitness)
+                attempts += 1
+            
             child = crossover(parent1, parent2, self.num_assets, self.cardinality, self.crossover_rate)
             child = mutation(child, self.mutation_rate)
             new_population.append(child)
