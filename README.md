@@ -1,48 +1,97 @@
-Este repositorio contiene la implementación en Python de cinco algoritmos evolutivos multiobjetivo (MOEAs) para resolver el problema de optimización de porfolios con restricciones de cardinalidad (MVCCPO). Los algoritmos evaluados incluyen:
+# TFG - Minimización del Máximo Drawdown en Carteras de Inversión mediante Optimización Multiobjetivo
 
-- NSGA-II  
-- SPEA2  
-- NPGA2  
-- PESA  
-- e-MOEA  
+Este repositorio contiene la implementación en Python de cinco algoritmos evolutivos multiobjetivo (MOEAs) adaptados para resolver el problema de optimización de carteras con minimización del máximo drawdown (MDD) y maximización del retorno medio esperado. Los algoritmos evaluados son:
 
-Se han realizado experimentos comparativos sobre datos financieros reales y sintéticos para evaluar su desempeño.
+- NSGA-II
+- SPEA2
+- NPGA2
+- PESA
+- e-MOEA
+
+Los experimentos se han realizado sobre datos reales del IBEX 35 con cuatro configuraciones distintas (dos grupos de activos × dos períodos temporales).
 
 ## Descripción de carpetas y archivos
 
-- **`algorithms/`**: Implementaciones de los algoritmos evolutivos.
+- **`algorithms/`**: Implementaciones de los cinco algoritmos evolutivos.
 - **`algorithms/utils/`**: Funciones auxiliares para:
-  - carga y preprocesamiento de datos
-  - evaluación de individuos
-  - operadores genéticos
-  - visualización de resultados
-- **`data/`**: Datos financieros reales y sintéticos.
-- **`results/`**: Métricas de evaluación e imágenes de las fronteras de Pareto.
+  - carga y preprocesamiento de datos (`data_loader.py`)
+  - evaluación de individuos con MDD (`evaluation.py`)
+  - operadores genéticos y proyección al simplex (`operators.py`, `projection.py`, `initialization.py`)
+  - métricas de rendimiento (`performance.py`, `fitness.py`)
+  - visualización de resultados (`visualization.py`)
+  - normalización de objetivos (`normalization.py`)
+- **`algorithms/tests/`**: Scripts de validación:
+  - `oos.py`: validación out-of-sample
+  - `rolling.py`: backtest rolling con ventanas deslizantes
+  - `networth_validation.py`: simulación de evolución de capital desde 1000 EUR
+- **`data/`**: Datos financieros del IBEX 35 organizados en cuatro problemas (`prob1` a `prob4`), cada uno con entrenamiento y validación.
+- **`results/`**: Resultados organizados por problema y algoritmo (métricas, fronteras de Pareto, validaciones).
+- **`prepare_ibex_data.py`**: Script para descargar y preparar los cuatro datasets desde Yahoo Finance.
 - **`main.py`**: Script principal de ejecución de experimentos.
 - **`requirements.txt`**: Dependencias del proyecto.
 - **`README.md`**: Documentación general del repositorio.
 
 ## Instrucciones de uso
 
-### 1. Crear un entorno virtual (opcional pero recomendado)
+### 1. Clonar el repositorio
 
 ```bash
+git clone https://github.com/carlosgmOY/TFG_Drawdown.git
+cd TFG_Drawdown
+2. Crear un entorno virtual (opcional pero recomendado)
+bash
+
 python -m venv venv
 source venv/bin/activate   # En Linux/macOS
 venv\Scripts\activate      # En Windows
-```
-### 2. Instalar dependencias
-```bash
+
+3. Instalar dependencias
+bash
+
 pip install -r requirements.txt
-```
 
-### 3. Ejecutar el script principal de ejemplo
-```bash
-python main.py
-```
-Nota: Dentro de main.py, puedes elegir qué algoritmo ejecutar comentando o descomentando las líneas correspondientes, además de elegir los parámetros de todos los algoritmos.
-Cada algoritmo, proporciona la población final, las métricas de evaluación (hipervolumen e índice de Sharpe medio) si se llama a la función encargada de ello, tiempo computacional, el número de individuos por cada cardinal de activo permitido y un plot con la población final, la frontera de Pareto.
+4. Preparar los datos
+bash
 
-#### Consideraciones
-- **Aleatoriedad**: Debido a la naturaleza estocástica de los algoritmos evolutivos, los resultados pueden variar entre ejecuciones.
-- **Modularidad**: El código está diseñado para facilitar la adición de nuevos algoritmos o configuraciones experimentales.
+python prepare_ibex_data.py
+
+Este script descarga los datos históricos del IBEX 35 desde Yahoo Finance y genera cuatro configuraciones experimentales en data/prob1/ a data/prob4/.
+5. Ejecutar un experimento
+
+El script principal acepta un parámetro --prob para seleccionar el problema (1-4). Dentro de main.py, descomenta el algoritmo que quieras ejecutar:
+bash
+
+python main.py --prob 1
+
+6. Ejecutar validaciones
+
+Una vez generadas las poblaciones con main.py, puedes ejecutar las validaciones:
+bash
+
+python algorithms/tests/oos.py --prob 1
+python algorithms/tests/rolling.py --prob 1
+python algorithms/tests/networth_validation.py --prob 1
+
+Métricas de evaluación
+
+Cada algoritmo proporciona:
+
+    Hipervolumen: calidad de la frontera de Pareto
+
+    Sortino ratio: rentabilidad ajustada al riesgo bajista
+
+    MDD medio y duración del drawdown: riesgo y persistencia de pérdidas
+
+    Tiempo de ejecución
+
+    Frontera de Pareto (gráfico MDD vs Retorno)
+
+    Distribución de activos por cartera
+
+Consideraciones
+
+    Aleatoriedad: Debido a la naturaleza estocástica de los algoritmos evolutivos, los resultados pueden variar entre ejecuciones.
+
+    Modularidad: El código está diseñado para facilitar la adición de nuevos algoritmos, métricas o configuraciones experimentales.
+
+    Datos: Los datasets se generan a partir de Yahoo Finance. Si algún ticker deja de estar disponible, edita las listas GRUPO_A y GRUPO_B en prepare_ibex_data.py.
