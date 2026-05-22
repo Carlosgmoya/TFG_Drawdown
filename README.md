@@ -1,6 +1,8 @@
 # TFG - Minimización del Máximo Drawdown en Carteras de Inversión mediante Optimización Multiobjetivo
 
-Este repositorio contiene la implementación en Python de cinco algoritmos evolutivos multiobjetivo (MOEAs) adaptados para resolver el problema de optimización de carteras con minimización del máximo drawdown (MDD) y maximización del retorno medio esperado. Los algoritmos evaluados son:
+Este repositorio contiene la implementación en Python de cinco algoritmos evolutivos multiobjetivo (MOEAs) adaptados para resolver el problema de optimización de carteras mediante la **minimización del máximo drawdown (MDD)** y la **maximización del retorno medio esperado**.
+
+Los algoritmos evaluados son:
 
 - NSGA-II
 - SPEA2
@@ -8,28 +10,58 @@ Este repositorio contiene la implementación en Python de cinco algoritmos evolu
 - PESA
 - e-MOEA
 
-Los experimentos se han realizado sobre datos reales del IBEX 35 con cuatro configuraciones distintas (dos grupos de activos × dos períodos temporales).
+Los experimentos se han realizado sobre datos reales del **IBEX 35**, utilizando cuatro configuraciones distintas:
 
-## Descripción de carpetas y archivos
+- Dos grupos de activos
+- Dos períodos temporales
 
-- **`algorithms/`**: Implementaciones de los cinco algoritmos evolutivos.
-- **`algorithms/utils/`**: Funciones auxiliares para:
-  - carga y preprocesamiento de datos (`data_loader.py`)
-  - evaluación de individuos con MDD (`evaluation.py`)
-  - operadores genéticos y proyección al simplex (`operators.py`, `projection.py`, `initialization.py`)
-  - métricas de rendimiento (`performance.py`, `fitness.py`)
-  - visualización de resultados (`visualization.py`)
-  - normalización de objetivos (`normalization.py`)
-- **`algorithms/tests/`**: Scripts de validación:
-  - `oos.py`: validación out-of-sample
-  - `rolling.py`: backtest rolling con ventanas deslizantes
-  - `networth_validation.py`: simulación de evolución de capital desde 1000 EUR
-- **`data/`**: Datos financieros del IBEX 35 organizados en cuatro problemas (`prob1` a `prob4`), cada uno con entrenamiento y validación.
-- **`results/`**: Resultados organizados por problema y algoritmo (métricas, fronteras de Pareto, validaciones).
-- **`prepare_ibex_data.py`**: Script para descargar y preparar los cuatro datasets desde Yahoo Finance.
-- **`main.py`**: Script principal de ejecución de experimentos.
-- **`requirements.txt`**: Dependencias del proyecto.
-- **`README.md`**: Documentación general del repositorio.
+---
+
+## Estructura del proyecto
+
+### `algorithms/`
+Implementaciones de los cinco algoritmos evolutivos.
+
+### `algorithms/utils/`
+Funciones auxiliares para:
+
+- Carga y preprocesamiento de datos (`data_loader.py`)
+- Evaluación de individuos con MDD (`evaluation.py`)
+- Operadores genéticos y proyección al simplex:
+  - `operators.py`
+  - `projection.py`
+  - `initialization.py`
+- Métricas de rendimiento:
+  - `performance.py`
+  - `fitness.py`
+- Visualización de resultados (`visualization.py`)
+- Normalización de objetivos (`normalization.py`)
+
+### `algorithms/tests/`
+Scripts de validación:
+
+- `oos.py`: validación *Out-of-Sample*
+- `rolling.py`: *backtesting rolling* con ventanas deslizantes
+- `networth_validation.py`: simulación de evolución de capital desde 1000 EUR
+
+### `data/`
+Datos financieros del IBEX 35 organizados en cuatro problemas (`prob1` a `prob4`), cada uno con conjuntos de entrenamiento y validación.
+
+### `results/`
+Resultados organizados por problema y algoritmo:
+
+- Métricas
+- Fronteras de Pareto
+- Validaciones
+
+### Otros archivos
+
+- `prepare_ibex_data.py`: descarga y preparación de datasets desde Yahoo Finance
+- `main.py`: script principal de ejecución
+- `requirements.txt`: dependencias del proyecto
+- `README.md`: documentación del repositorio
+
+---
 
 ## Instrucciones de uso
 
@@ -38,60 +70,122 @@ Los experimentos se han realizado sobre datos reales del IBEX 35 con cuatro conf
 ```bash
 git clone https://github.com/carlosgmOY/TFG_Drawdown.git
 cd TFG_Drawdown
-2. Crear un entorno virtual (opcional pero recomendado)
-bash
+```
 
+### 2. Crear un entorno virtual (opcional pero recomendado)
+
+**Linux/macOS**
+
+```bash
 python -m venv venv
-source venv/bin/activate   # En Linux/macOS
-venv\Scripts\activate      # En Windows
+source venv/bin/activate
+```
 
-3. Instalar dependencias
-bash
+**Windows**
 
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3. Instalar dependencias
+
+```bash
 pip install -r requirements.txt
+```
 
-4. Preparar los datos
-bash
+### 4. Preparar los datos
 
+```bash
 python prepare_ibex_data.py
+```
 
-Este script descarga los datos históricos del IBEX 35 desde Yahoo Finance y genera cuatro configuraciones experimentales en data/prob1/ a data/prob4/.
-5. Ejecutar un experimento
+Este script:
 
-El script principal acepta un parámetro --prob para seleccionar el problema (1-4). Dentro de main.py, descomenta el algoritmo que quieras ejecutar:
-bash
+- Descarga los datos históricos del IBEX 35 desde Yahoo Finance
+- Genera cuatro configuraciones experimentales:
+  - `data/prob1/`
+  - `data/prob2/`
+  - `data/prob3/`
+  - `data/prob4/`
 
+### 5. Ejecutar un experimento
+
+El script principal acepta un parámetro `--prob` para seleccionar el problema (`1–4`).
+
+Dentro de `main.py`, descomenta el algoritmo que quieras ejecutar.
+
+Ejemplo:
+
+```bash
 python main.py --prob 1
+```
 
-6. Ejecutar validaciones
+### 6. Ejecutar validaciones
 
-Una vez generadas las poblaciones con main.py, puedes ejecutar las validaciones:
-bash
+Una vez generadas las poblaciones mediante `main.py`, pueden ejecutarse las validaciones:
 
+```bash
 python algorithms/tests/oos.py --prob 1
 python algorithms/tests/rolling.py --prob 1
 python algorithms/tests/networth_validation.py --prob 1
+```
 
-Métricas de evaluación
+---
 
-Cada algoritmo proporciona:
+## Métricas de evaluación
 
-    Hipervolumen: calidad de la frontera de Pareto
+Cada algoritmo proporciona las siguientes métricas:
 
-    Sortino ratio: rentabilidad ajustada al riesgo bajista
+- **Hipervolumen**
+  - Calidad de la frontera de Pareto
 
-    MDD medio y duración del drawdown: riesgo y persistencia de pérdidas
+- **Sortino Ratio**
+  - Rentabilidad ajustada al riesgo bajista
 
-    Tiempo de ejecución
+- **MDD medio y duración del drawdown**
+  - Riesgo y persistencia de pérdidas
 
-    Frontera de Pareto (gráfico MDD vs Retorno)
+- **Tiempo de ejecución**
 
-    Distribución de activos por cartera
+- **Frontera de Pareto**
+  - Gráfico MDD vs Retorno
 
-Consideraciones
+- **Distribución de activos por cartera**
 
-    Aleatoriedad: Debido a la naturaleza estocástica de los algoritmos evolutivos, los resultados pueden variar entre ejecuciones.
+---
 
-    Modularidad: El código está diseñado para facilitar la adición de nuevos algoritmos, métricas o configuraciones experimentales.
+## Consideraciones
 
-    Datos: Los datasets se generan a partir de Yahoo Finance. Si algún ticker deja de estar disponible, edita las listas GRUPO_A y GRUPO_B en prepare_ibex_data.py.
+### Aleatoriedad
+
+Debido a la naturaleza estocástica de los algoritmos evolutivos, los resultados pueden variar entre ejecuciones.
+
+### Modularidad
+
+El código está diseñado para facilitar la incorporación de:
+
+- Nuevos algoritmos
+- Nuevas métricas
+- Configuraciones experimentales adicionales
+
+### Datos
+
+Los datasets se generan a partir de Yahoo Finance.
+
+Si algún *ticker* deja de estar disponible, modifica las listas:
+
+- `GRUPO_A`
+- `GRUPO_B`
+
+dentro del archivo:
+
+```python
+prepare_ibex_data.py
+```
+
+---
+
+## Autor
+
+Trabajo Fin de Grado (TFG) centrado en optimización multiobjetivo aplicada a carteras de inversión con restricciones de riesgo basadas en *Maximum Drawdown*.
